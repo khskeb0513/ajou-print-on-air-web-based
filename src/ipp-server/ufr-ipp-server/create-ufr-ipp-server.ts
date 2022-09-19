@@ -1,5 +1,5 @@
 import { createWriteStream, existsSync } from 'fs';
-import { UFRPrinterName } from '../../config/config';
+import { Config, UFRPrinterName } from '../../config/config';
 import { join } from 'path';
 import { sendRemote } from '../../send-remote/send-remote';
 import { deleteTask } from '../../db/db';
@@ -7,7 +7,7 @@ import { deleteTask } from '../../db/db';
 const Printer = require('ipp-printer');
 
 export function createUfrIppServer() {
-  const UFRIPPServer = new Printer(UFRPrinterName);
+  const UFRIPPServer = new Printer(UFRPrinterName, Config.port.ufr_ipp);
   console.log('[URF_IPP] URF IPP server started.');
   console.log(UFRPrinterName, UFRIPPServer.server.address());
 

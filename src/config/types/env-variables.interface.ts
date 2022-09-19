@@ -1,4 +1,7 @@
 export interface EnvVariablesInterface {
   nickname: string;
-  NODE_ENV: string;
+  port: {
+    ufr_ipp: number;
+    ps_ipp: number;
+  };
 }

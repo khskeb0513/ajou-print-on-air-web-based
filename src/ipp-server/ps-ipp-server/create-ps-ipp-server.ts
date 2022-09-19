@@ -1,4 +1,4 @@
-import { CupsUFRPrinterName, PSPrinterName } from '../../config/config';
+import { Config, CupsUFRPrinterName, PSPrinterName } from '../../config/config';
 import { v4 as uuidV4 } from 'uuid';
 import { readFileSync, createWriteStream } from 'fs';
 import { join } from 'path';
@@ -11,7 +11,7 @@ const Printer = require('ipp-printer');
 const pdfPageCounter = require('pdf-page-counter');
 
 export function createPsIppServer() {
-  const PsIppServer = new Printer(PSPrinterName);
+  const PsIppServer = new Printer(PSPrinterName, Config.port.ps_ipp);
   console.log('[PS_IPP] PS IPP server started.');
   console.log(PSPrinterName, PsIppServer.server.address());
 
