@@ -7,7 +7,10 @@ import { deleteTask } from '../../db/db';
 const Printer = require('ipp-printer');
 
 export function createUfrIppServer() {
-  const UFRIPPServer = new Printer(UFRPrinterName, Config.port.ufr_ipp);
+  const UFRIPPServer = new Printer({
+    name: UFRPrinterName,
+    port: Config.port.ufr_ipp,
+  });
   console.log('[URF_IPP] URF IPP server started.');
   console.log(UFRPrinterName, UFRIPPServer.server.address());
 

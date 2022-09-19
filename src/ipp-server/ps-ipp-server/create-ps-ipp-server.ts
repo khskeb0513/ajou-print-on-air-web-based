@@ -11,7 +11,10 @@ const Printer = require('ipp-printer');
 const pdfPageCounter = require('pdf-page-counter');
 
 export function createPsIppServer() {
-  const PsIppServer = new Printer(PSPrinterName, Config.port.ps_ipp);
+  const PsIppServer = new Printer({
+    name: PSPrinterName,
+    port: Config.port.ps_ipp,
+  });
   console.log('[PS_IPP] PS IPP server started.');
   console.log(PSPrinterName, PsIppServer.server.address());
 
