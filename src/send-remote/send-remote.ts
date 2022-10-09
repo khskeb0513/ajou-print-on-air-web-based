@@ -1,39 +1,32 @@
-import { deleteTask, getTask } from '../db/db';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { addressConfig, Config } from '../config/config';
-import { QueueValueVo } from '../db/vos/queue-value.vo';
 import axios from 'axios';
+import { HandledJob } from 'virtual-printer';
+import { FileInformation } from '../ipp-server/create-ipp-server';
 
-export async function sendRemote(queueId: string) {
-  const queue = await getTask(queueId);
-  await registerDoc(queueId, queue)
-    .then(() => {
-      console.log(`[SEND_REMOTE] ${queueId} registered.`);
-      sendPrnFile(queueId);
-    })
-    .catch((reason) => {
-      console.error(reason.message);
-      console.log(`[SEND_REMOTE] ${queueId} fail to register.`);
-    });
-  await deleteTask(queueId);
+export async function sendRemote(
+  handledJob: HandledJob,
+  fileInformation: FileInformation,
+  data: Buffer,
+) {
+  await registerDoc(handledJob, fileInformation);
+  await sendPrnFile(fileInformation, data);
 }
 
-function registerDoc(queueId: string, queue: QueueValueVo) {
+function registerDoc(handledJob: HandledJob, fileInformation: FileInformation) {
   const body = {
-    nonmember_id: Config.nickname,
-    franchise: '28',
+    nonmember_id: fileInformation.nickname,
+    franchise: Config.service.franchise_id,
     pc_mac: addressConfig.macAddress,
     docs: [
       {
-        doc_name: queue.docName,
-        queue_id: queueId,
+        doc_name: handledJob['job-name'],
+        queue_id: fileInformation.queueId,
         pc_id: addressConfig.ipAddress,
         pages: [
           {
             size: 'A4',
             color: 0,
-            cnt: queue.pageCount,
+            cnt: fileInformation.length,
           },
         ],
       },
@@ -50,18 +43,11 @@ function registerDoc(queueId: string, queue: QueueValueVo) {
   );
 }
 
-async function sendPrnFile(queueId: string) {
-  const raw = await readFileSync(
-    join(process.env.PWD as string, 'temp/', queueId + '.prn'),
-  );
-  await axios.post(
-    'http://218.145.52.6:8080/spbs/upload_bin',
-    Buffer.from(raw),
-    {
-      headers: {
-        'Content-Type': 'application/X-binary',
-        'Content-Disposition': `attachment;filename=${queueId}.prn`,
-      },
+async function sendPrnFile(fileInformation: FileInformation, data: Buffer) {
+  await axios.post(Config.service.upload_bin_url, data, {
+    headers: {
+      'Content-Type': 'application/X-binary',
+      'Content-Disposition': `attachment;filename=${fileInformation.queueId}.prn`,
     },
-  );
+  });
 }
