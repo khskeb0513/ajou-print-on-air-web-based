@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
-    name: "ajou-print-on-air",
+    name: "ajou-print-on-air-web-based",
     script: "npm run start",
-    instances: 1
+    instances: 0
   }]
 };
