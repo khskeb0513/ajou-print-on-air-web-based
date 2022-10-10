@@ -19,7 +19,7 @@ function registerDoc(handledJob: HandledJob, fileInformation: FileInformation) {
     pc_mac: addressConfig.macAddress,
     docs: [
       {
-        doc_name: handledJob['job-name'],
+        doc_name: fileInformation.jobName,
         queue_id: fileInformation.queueId,
         pc_id: addressConfig.ipAddress,
         pages: [

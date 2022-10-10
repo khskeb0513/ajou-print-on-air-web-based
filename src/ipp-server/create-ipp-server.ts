@@ -8,7 +8,7 @@ import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 
 export class FileInformation {
-  constructor(public nickname = '', public length = 0) {}
+  constructor(public jobName = '', public nickname = '', public length = 0) {}
 
   public queueId = v4();
 }
@@ -38,8 +38,9 @@ export function createIppServer() {
     new ipp.IPPPrinter(Config.printer.filter_printer_cups_url)
       .printFile({
         buffer: data,
-        jobName: handledJob['job-name'],
-        username: JSON.stringify(new FileInformation('01084680551', countPage)),
+        jobName: JSON.stringify(
+          new FileInformation(handledJob['job-name'], '01084680551', countPage),
+        ),
         fileType: 'application/postscript',
       })
       .catch((error) => console.error(error));
@@ -63,7 +64,7 @@ export function createIppServer() {
   filterPrinter.on('data', (handledJob, data) => {
     let fileInformation = new FileInformation();
     try {
-      fileInformation = JSON.parse(handledJob['job-originating-user-name']);
+      fileInformation = JSON.parse(handledJob['job-name']);
     } catch {}
     if (Config.debug) {
       console.log(handledJob);
