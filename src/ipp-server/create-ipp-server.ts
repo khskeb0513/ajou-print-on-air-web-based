@@ -4,6 +4,8 @@ import { execSync } from 'child_process';
 import * as ipp from 'ipp-easyprint';
 import { v4 } from 'uuid';
 import { sendRemote } from '../send-remote/send-remote';
+import { writeFileSync } from 'fs';
+import { resolve } from 'path';
 
 export class FileInformation {
   constructor(public nickname = '', public length = 0) {}
@@ -41,6 +43,13 @@ export function createIppServer() {
         fileType: 'application/postscript',
       })
       .catch((error) => console.error(error));
+    if (Config.debug) {
+      console.log(handledJob);
+      writeFileSync(
+        resolve('temp/', handledJob.createdAt + '_original.prn'),
+        data,
+      );
+    }
   });
 
   const filterPrinter = new Printer({
@@ -58,6 +67,13 @@ export function createIppServer() {
     } catch {}
     if (fileInformation.length > 0 && !!fileInformation.nickname) {
       return sendRemote(handledJob, fileInformation, data);
+    }
+    if (Config.debug) {
+      console.log(handledJob);
+      writeFileSync(
+        resolve('temp/', handledJob.createdAt + '_filtered.prn'),
+        data,
+      );
     }
   });
 }

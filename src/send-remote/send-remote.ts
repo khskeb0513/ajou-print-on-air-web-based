@@ -45,7 +45,9 @@ function registerDoc(handledJob: HandledJob, fileInformation: FileInformation) {
 }
 
 async function sendPrnFile(fileInformation: FileInformation, data: Buffer) {
-  console.log(fileInformation);
+  if (Config.debug) {
+    console.log(fileInformation);
+  }
   await axios.post(Config.service.upload_bin_url, data, {
     headers: {
       'Content-Type': 'application/X-binary',
