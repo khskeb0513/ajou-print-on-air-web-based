@@ -66,7 +66,7 @@ export function createIppServer() {
     try {
       fileInformation = JSON.parse(
         handledJob['job-name'].slice(
-          (handledJob['job-name'].match(/{/g) as RegExpMatchArray).index,
+          handledJob['job-name'].search('{'),
           handledJob['job-name'].length,
         ),
       );
