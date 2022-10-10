@@ -24,9 +24,7 @@ export function createIppServer() {
     !error ? null : console.error(error),
   );
 
-  frontPrinter.on('data', (handledJob, data, request) => {
-    console.log(request.url);
-    console.log(handledJob);
+  frontPrinter.on('data', (handledJob, data) => {
     const countPage = (
       execSync('gs -q -o - -sDEVICE=inkcov -_', {
         stdio: 'pipe',
@@ -35,13 +33,14 @@ export function createIppServer() {
         .toString()
         .match(/ok/gi) || [1]
     ).length;
-    console.log(countPage);
-    new ipp.IPPPrinter(Config.printer.filter_printer_cups_url).printFile({
-      buffer: data,
-      jobName: handledJob['job-name'],
-      username: JSON.stringify(new FileInformation('01084680551', countPage)),
-      fileType: 'application/postscript',
-    });
+    new ipp.IPPPrinter(Config.printer.filter_printer_cups_url)
+      .printFile({
+        buffer: data,
+        jobName: handledJob['job-name'],
+        username: JSON.stringify(new FileInformation('01084680551', countPage)),
+        fileType: 'application/postscript',
+      })
+      .catch((error) => console.error(error));
   });
 
   const filterPrinter = new Printer({

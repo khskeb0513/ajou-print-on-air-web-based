@@ -10,4 +10,5 @@ export interface EnvVariablesInterface {
     upload_bin_url: string;
     franchise_id: string;
   };
+  debug: boolean;
 }

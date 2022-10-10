@@ -32,6 +32,7 @@ function registerDoc(handledJob: HandledJob, fileInformation: FileInformation) {
       },
     ],
   };
+  console.log(handledJob, body);
   return axios.post(
     'http://u-printon.canon-bs.co.kr:62301/nologin/regist_doc/',
     JSON.stringify(body),
@@ -44,6 +45,7 @@ function registerDoc(handledJob: HandledJob, fileInformation: FileInformation) {
 }
 
 async function sendPrnFile(fileInformation: FileInformation, data: Buffer) {
+  console.log(fileInformation);
   await axios.post(Config.service.upload_bin_url, data, {
     headers: {
       'Content-Type': 'application/X-binary',
