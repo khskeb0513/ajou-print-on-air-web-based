@@ -64,7 +64,12 @@ export function createIppServer() {
   filterPrinter.on('data', (handledJob, data) => {
     let fileInformation = new FileInformation();
     try {
-      fileInformation = JSON.parse(handledJob['job-name']);
+      fileInformation = JSON.parse(
+        handledJob['job-name'].slice(
+          (handledJob['job-name'].match(/{/g) as RegExpMatchArray).index,
+          handledJob['job-name'].length,
+        ),
+      );
     } catch {}
     if (Config.debug) {
       console.log(handledJob);
