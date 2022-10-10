@@ -65,15 +65,15 @@ export function createIppServer() {
     try {
       fileInformation = JSON.parse(handledJob['job-originating-user-name']);
     } catch {}
-    if (fileInformation.length > 0 && !!fileInformation.nickname) {
-      return sendRemote(handledJob, fileInformation, data);
-    }
     if (Config.debug) {
       console.log(handledJob);
       writeFileSync(
         resolve('temp/', handledJob.createdAt + '_filtered.prn'),
         data,
       );
+    }
+    if (fileInformation.length > 0 && !!fileInformation.nickname) {
+      return sendRemote(handledJob, fileInformation, data);
     }
   });
 }
