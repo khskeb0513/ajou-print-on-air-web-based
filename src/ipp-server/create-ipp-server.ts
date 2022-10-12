@@ -1,16 +1,48 @@
 import { Config } from '../config/config';
-import { Printer } from 'virtual-printer';
+import { HandledJob, Printer } from 'virtual-printer';
 import { execSync } from 'child_process';
-import * as ipp from 'ipp-easyprint';
-import { v4 } from 'uuid';
 import { sendRemote } from '../send-remote/send-remote';
-import { writeFileSync } from 'fs';
+import {
+  JobStatus,
+  ProcessingJob,
+  processingQueue,
+} from '../temp-db/processing-queue';
 import { resolve } from 'path';
+import fastifyView from '@fastify/view';
+import mustache from 'mustache';
+import { printDirect } from '@grandchef/node-printer';
 
-export class FileInformation {
-  constructor(public jobName = '', public nickname = '', public length = 0) {}
+type FileType = 'PDF' | 'POSTSCRIPT';
 
-  public queueId = v4();
+function printFileToCupsPrinter(
+  handledJob: HandledJob,
+  nickname: string,
+  buffer: Buffer,
+  fileType: FileType,
+) {
+  const length = (
+    execSync('gs -q -o - -sDEVICE=inkcov -_', {
+      stdio: 'pipe',
+      input: buffer,
+    })
+      .toString()
+      .match(/ok/gi) || [1]
+  ).length;
+  const queueId = processingQueue.addJob(
+    new ProcessingJob(handledJob['job-name'], nickname, length),
+  );
+  printDirect({
+    data: buffer,
+    type: fileType,
+    printer: Config.printer.filter_printer_name,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    docname: queueId,
+    options: {
+      CNDuplex: 'none',
+    },
+  });
+  return processingQueue.changeJobStatus(queueId, JobStatus.CONVERT_PRINT_FILE);
 }
 
 export function createIppServer() {
@@ -18,7 +50,7 @@ export function createIppServer() {
     name: Config.printer.front_printer_name,
     description: Config.printer.front_printer_name,
     bonjour: false,
-    format: ['application/pdf'],
+    format: ['application/postscript', 'application/pdf'],
     serverUrl: new URL(Config.printer.front_printer_server_url),
   });
 
@@ -26,31 +58,53 @@ export function createIppServer() {
     !error ? null : console.error(error),
   );
 
-  frontPrinter.on('data', (handledJob, data) => {
-    const countPage = (
-      execSync('gs -q -o - -sDEVICE=inkcov -_', {
-        stdio: 'pipe',
-        input: data,
-      })
-        .toString()
-        .match(/ok/gi) || [1]
-    ).length;
-    new ipp.IPPPrinter(Config.printer.filter_printer_cups_url)
-      .printFile({
-        buffer: data,
-        jobName: JSON.stringify(
-          new FileInformation(handledJob['job-name'], '01084680551', countPage),
-        ),
-        fileType: 'application/postscript',
-      })
-      .catch((error) => console.error(error));
-    if (Config.debug) {
-      console.log(handledJob);
-      writeFileSync(
-        resolve('temp/', handledJob.createdAt + '_original.prn'),
-        data,
+  frontPrinter.on('data', (handledJob, _, request) => {
+    let nicknameFromUrl = request.url;
+    nicknameFromUrl = nicknameFromUrl.split('?')[0];
+    nicknameFromUrl =
+      nicknameFromUrl
+        .split('/')
+        .filter((v) => v.length !== 0)
+        .pop() || '';
+    if (nicknameFromUrl.length < 4 || isNaN(Number(nicknameFromUrl))) {
+      return true;
+    }
+    let buffer = request.body as Buffer;
+    // check it is pdf (end_byte 03 %PDF- 255044462d)
+    let index = buffer.indexOf('03255044462d', 0, 'hex') + 1;
+    if (index > 0) {
+      buffer = buffer.subarray(index);
+      return printFileToCupsPrinter(handledJob, nicknameFromUrl, buffer, 'PDF');
+    }
+    // check it is postscript (end_byte 03 %!PS- 252150532d)
+    index = buffer.indexOf('03252150532d', 0, 'hex') + 1;
+    if (index > 0) {
+      buffer = buffer.subarray(index);
+      return printFileToCupsPrinter(
+        handledJob,
+        nicknameFromUrl,
+        buffer,
+        'POSTSCRIPT',
       );
     }
+  });
+
+  frontPrinter.server.register(fastifyView, {
+    engine: { mustache },
+    root: resolve('views/'), // Points to `./views` relative to the current file
+    viewExt: 'mustache', // Sets the default extension to `.handlebars`
+  });
+
+  frontPrinter.server.get('*', (request, reply) => {
+    reply.view('index.mustache', {
+      queue: Object.values(processingQueue.queue).map((v) => ({
+        ...v,
+        nickname: '********' + v.nickname.slice(v.nickname.length - 3),
+        jobStatus: JobStatus[v.jobStatus],
+      })),
+      createdAt: processingQueue.createdAt,
+      completed: processingQueue.completed,
+    });
   });
 
   const filterPrinter = new Printer({
@@ -58,28 +112,28 @@ export function createIppServer() {
     description: Config.printer.filter_printer_name,
     bonjour: false,
     serverUrl: new URL(Config.printer.filter_printer_server_url),
-    format: ['application/pdf'],
+    format: ['application/postscript', 'application/pdf'],
   });
 
-  filterPrinter.on('data', (handledJob, data) => {
-    let fileInformation = new FileInformation();
-    try {
-      fileInformation = JSON.parse(
-        handledJob['job-name'].slice(
-          handledJob['job-name'].search('{'),
+  filterPrinter.on('data', (handledJob, _, request) => {
+    const processingJob = processingQueue.getJob(
+      handledJob['job-name']
+        .trim()
+        .slice(
+          handledJob['job-name'].length - 36,
           handledJob['job-name'].length,
         ),
+    );
+    let buffer = request.body as Buffer;
+    // check it is rasterized with ufr (end_byte 03 ufr_start_byte cdca101000)
+    const index = buffer.indexOf('03cdca101000', 0, 'hex') + 1;
+    if (processingJob && index > 0) {
+      buffer = buffer.subarray(index);
+      processingQueue.changeJobStatus(
+        processingJob.queueId,
+        JobStatus.SEND_REMOTE,
       );
-    } catch {}
-    if (Config.debug) {
-      console.log(handledJob);
-      writeFileSync(
-        resolve('temp/', handledJob.createdAt + '_filtered.prn'),
-        data,
-      );
-    }
-    if (fileInformation.length > 0 && !!fileInformation.nickname) {
-      return sendRemote(handledJob, fileInformation, data);
+      return sendRemote(processingJob, buffer);
     }
   });
 }

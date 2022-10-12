@@ -1,38 +1,34 @@
 import { addressConfig, Config } from '../config/config';
 import axios from 'axios';
-import { HandledJob } from 'virtual-printer';
-import { FileInformation } from '../ipp-server/create-ipp-server';
+import { ProcessingJob, processingQueue } from '../temp-db/processing-queue';
 
-export async function sendRemote(
-  handledJob: HandledJob,
-  fileInformation: FileInformation,
-  data: Buffer,
-) {
-  await registerDoc(handledJob, fileInformation);
-  await sendPrnFile(fileInformation, data);
+export async function sendRemote(processingJob: ProcessingJob, buffer: Buffer) {
+  await registerDoc(processingJob);
+  await sendPrnFile(processingJob, buffer).then(() => {
+    processingQueue.removeJob(processingJob.queueId);
+  });
 }
 
-function registerDoc(handledJob: HandledJob, fileInformation: FileInformation) {
+function registerDoc(processingJob: ProcessingJob) {
   const body = {
-    nonmember_id: fileInformation.nickname,
+    nonmember_id: processingJob.nickname,
     franchise: Config.service.franchise_id,
     pc_mac: addressConfig.macAddress,
     docs: [
       {
-        doc_name: fileInformation.jobName,
-        queue_id: fileInformation.queueId,
+        doc_name: processingJob.jobName,
+        queue_id: processingJob.queueId,
         pc_id: addressConfig.ipAddress,
         pages: [
           {
             size: 'A4',
             color: 0,
-            cnt: fileInformation.length,
+            cnt: processingJob.length,
           },
         ],
       },
     ],
   };
-  console.log(handledJob, body);
   return axios.post(
     'http://u-printon.canon-bs.co.kr:62301/nologin/regist_doc/',
     JSON.stringify(body),
@@ -44,14 +40,11 @@ function registerDoc(handledJob: HandledJob, fileInformation: FileInformation) {
   );
 }
 
-async function sendPrnFile(fileInformation: FileInformation, data: Buffer) {
-  if (Config.debug) {
-    console.log(fileInformation);
-  }
-  await axios.post(Config.service.upload_bin_url, data, {
+async function sendPrnFile(processingJob: ProcessingJob, buffer: Buffer) {
+  await axios.post(Config.service.upload_bin_url, buffer, {
     headers: {
       'Content-Type': 'application/X-binary',
-      'Content-Disposition': `attachment;filename=${fileInformation.queueId}.prn`,
+      'Content-Disposition': `attachment;filename=${processingJob.queueId}.prn`,
     },
   });
 }

@@ -1,0 +1,47 @@
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>APOA Console</title>
+</head>
+<body>
+<h1>
+    APOA Console
+</h1>
+<span>
+    Server restarted at {{createdAt}}
+</span>
+<hr>
+{{#queue}}
+    <ul>
+        <li class="{{queueId}}">
+            queue id: {{queueId}}
+        </li>
+        <li class="{{queueId}}">
+            job name: {{jobName}}
+        </li>
+        <li class="{{queueId}}">
+            nickname: {{nickname}}
+        </li>
+        <li class="{{queueId}}">
+            page length: {{length}}
+        </li>
+        <li class="{{queueId}}">
+            job status: {{jobStatus}}
+        </li>
+        <li class="{{queueId}}">
+            created at: {{createdAt}}
+        </li>
+    </ul>
+{{/queue}}
+<script>
+        {{#completed}}
+        for (const liElement of document.getElementsByClassName('{{.}}')) {
+            liElement.setAttribute('style', 'color: grey')
+        }
+        {{/completed}}
+</script>
+</body>
+</html>
